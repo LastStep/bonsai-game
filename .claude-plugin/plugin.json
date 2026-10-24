@@ -1,0 +1,9 @@
+{
+  "name": "game",
+  "description": "A game project's part of a studio, as a Bonsai pack: the playtest analyst and the producer, the play-session interview and its record, and the rules for working in a Unity project without breaking its files.",
+  "author": {
+    "name": "Trinetra"
+  },
+  "repository": "https://github.com/LastStep/bonsai-game",
+  "license": "MIT"
+}

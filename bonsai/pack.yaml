@@ -1,0 +1,73 @@
+# bonsai/pack.yaml: the game pack's Bonsai manifest, format bonsai.pack/1. Bonsai's engine reads it when a project
+# links the pack (bonsai init, bonsai update) and when the pack's CI runs bonsai check --pack; Claude Code never reads
+# it. It says who the pack is, what a machine needs, and what the pack declares: the document kind playtest and two
+# roles, the playtest analyst and the producer, with their limits. It carries no code: no hook line and no file the
+# engine writes. Every key carries its comment, at its line's end or on the line just above; bonsai check --pack fails
+# a key without one. Every field's full meaning, type and allowed values: bonsai check --schema bonsai.pack. Text that
+# does not start with a letter is quoted (format-1 YAML). README.md says how a project takes the pack.
+format: bonsai.pack/1                 # the format and its version, always the first key; only bonsai.pack/1
+# id: the pack's id, equal to "name" in .claude-plugin/plugin.json; its roles and skills load as game:<name>, e.g.
+# game:producer, game:interview
+id: game
+# version: the pack's version, quoted, as X.Y.Z; a release tag must be "v" and this (v0.1.0). plugin.json never
+# carries one: a project pins the pack by commit, and that commit is the version Claude Code sees
+version: "0.1.0"
+needs:                                # what a machine needs for the pack; bonsai status --json lists each
+  # claude_code: the oldest Claude Code the pack works with, quoted: Bonsai's own floor, so the pack asks for no newer
+  # one than Bonsai does; null: none of its own
+  claude_code: "2.1.294"
+# block: the pack's part of the instruction block in a project's CLAUDE.md, bonsai/block.md: two lines naming the
+# roles and the skills. It loads in every session, so its docs stay in its own leading comment
+block: block.md
+files: []                             # no files: the pack writes nothing into a project but its block
+hooks: []                             # no hook lines: the pack carries no code that runs
+deny: []                              # no walls of its own: base's and the studio pack's hold
+# documents: the one document kind the pack declares, the record of a play session, with its template in skill
+# game:playtest. A project keeps its place in its bonsai.yaml's documents, under the kind's name. Only one linked pack
+# may declare a kind (the engine refuses two), so a project takes this pack with a workflow pack that no longer
+# declares playtest
+documents:
+  - kind: playtest                    # the record of one play session: skill game:playtest
+    path: work/playtests              # its default folder, one file per session, named <date>-<who>.md
+    file: null                        # a folder, not one file
+    id: null                          # no ids: the file's name is its date and who played
+    statuses: []                      # no statuses
+    person: []                        # no moves
+    agent: []                         # no moves
+    stamp: {}                         # no dates set by a move
+    task_field: null                  # a playtest belongs to no one task; its proposed tasks point back at it
+protected: []                         # no protected paths of the pack's own: a project names its Unity files in bonsai.yaml
+# roles: the two roles, each with its file agents/<name>.md (loaded as game:<name>) and its limits. Each limit has a
+# default (what an agent of the role gets when its brief names none) and a max (the most a brief may give it), each a
+# whole number or null for no limit; the pack ships the max equal to the default, and a project sets its own under
+# the pack's entry in its bonsai.yaml. The numbers are a helper's as workflow's researcher has them; max_turns equals
+# the role file's maxTurns (bonsai check --pack holds the two equal), four times the default actions
+roles:
+  - name: playtest-analyst            # interviews the person after a play session; its file agents/playtest-analyst.md
+    kind: helper                      # it calls no one
+    session: false                    # not the person's own session: the person starts it fresh after playing
+    writes: true                      # it writes the playtest file
+    max_turns: 600                    # four times its default actions
+    minutes:                          # minutes since its first call, or since it read its newest brief
+      default: 30                     # thirty minutes unless its brief names another
+      max: 30                         # the most a brief may give, as shipped
+    actions:                          # tool calls, refused ones counted, from the same start
+      default: 150                    # one hundred and fifty calls unless its brief names another
+      max: 150                        # the most a brief may give, as shipped
+    red_runs:                         # failed ladder runs in a row: it climbs no ladder
+      default: null                   # no limit
+      max: null                       # no limit
+  - name: producer                    # keeps STATE true, writes the daily brief, triages; its file agents/producer.md
+    kind: helper                      # it calls no one
+    session: false                    # an agent a lead or the studio's schedule starts
+    writes: true                      # it writes STATE, the brief and task files, never game code
+    max_turns: 600                    # four times its default actions
+    minutes:                          # minutes since its first call, or since it read its newest brief
+      default: 30                     # thirty minutes unless its brief names another
+      max: 30                         # the most a brief may give, as shipped
+    actions:                          # tool calls, refused ones counted, from the same start
+      default: 150                    # one hundred and fifty calls unless its brief names another
+      max: 150                        # the most a brief may give, as shipped
+    red_runs:                         # failed ladder runs in a row: it climbs no ladder
+      default: null                   # no limit
+      max: null                       # no limit
