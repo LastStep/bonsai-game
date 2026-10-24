@@ -3,7 +3,8 @@
 A game project's part of a studio, as a [Bonsai](https://github.com/LastStep/Bonsai) pack: the two roles a game
 needs beside a workflow's builders and verifiers, the play-session interview and its record, and the rules for
 working in a Unity project without breaking the files Unity owns. It is a Claude Code plugin (its roles and skills)
-with a `bonsai/` folder (what Bonsai's engine reads when a project links the pack). It carries no code that runs.
+with a `bonsai/` folder (what Bonsai's engine reads when a project links the pack). It carries no hook line and
+nothing Claude Code runs on its own; its one script, the Unity segment, is run by a studio's status line.
 
 ## What a project gets
 
@@ -17,6 +18,7 @@ with a `bonsai/` folder (what Bonsai's engine reads when a project links the pac
   kind `playtest`), `game:asset-safety` (the files Unity owns and what to do instead) and `game:unity-live-editor`
   (driving the Editor from the command line).
 - **One document kind**, `playtest`, the record of one play session, with its template in `game:playtest`.
+- **The Unity segment**, a status-line script the engine writes at `.trinetra/statusline/unity.mjs` (below).
 - **A two-line block** in the project's `CLAUDE.md` naming the roles and the skills.
 
 It declares no walls, no lanes, no labels and no protected paths. A Unity project names the files Unity owns in its
@@ -28,8 +30,31 @@ the person (`pack.yaml` has no field for a dependency, so it is said here and in
 lanes, builders and verifiers. Only one linked pack may declare a document kind (Bonsai refuses a link where two do),
 so the workflow pack must not declare `playtest`.
 
-**Not here yet.** The Unity part of a status line (the Unity version and whether its Editor is open) is to come with
-this pack; where its file lands in a project is still being settled.
+## The Unity segment
+
+`bonsai/files/statusline-unity.mjs`, which `bonsai init` and `bonsai update` write into the project at
+`.trinetra/statusline/unity.mjs` (kind `pack`: an edit there is a conflict; its sha256 is in `.bonsai/lock.json`). The
+folder is a studio's convention, not Bonsai's: a studio's status line runs every script in
+`<current_dir>/.trinetra/statusline/` with Claude Code's status line JSON on stdin and a short timeout (300 ms), and
+appends what each prints. A project without the folder adds nothing and runs nothing. (A pack cannot write under
+`.bonsai/`: that folder is Bonsai's own.)
+
+It prints the Unity version the project asks for (`ProjectSettings/ProjectVersion.txt`, in the project's folder or
+one folder below it) and whether an Editor has the project open (`Library/EditorInstance.json` and whether its process
+is alive; `Temp/UnityLockfile` alone means one is starting or crashed):
+
+| Output | Meaning |
+|---|---|
+| `unity:6000.4.12f1 open` | an Editor of that version has it open |
+| `unity:6000.4.12f1 open in 6000.4.4f1` | an Editor of another version has it open |
+| `unity:6000.4.12f1 closed` | no Editor has it open |
+| `unity:2022.3.10f1 lock?` | only Unity's lock file: an Editor starting, or one that crashed |
+| nothing | the project holds no Unity project, or `STATUSLINE_HIDE` / `BONSAI_STATUSLINE_HIDE` lists `unity` |
+
+`NO_COLOR=1` turns its colour off. It is plain Node with no packages: it reads files, asks whether a process id is
+alive, and writes nothing. Since no hook line runs it, Bonsai counts no code in the pack and it links with `--yes`
+alone; the status line that runs it is the person's own. `ci/statusline-unity.test.mjs` runs it from a fixture
+project the way a status line does.
 
 ## How a project takes it
 
@@ -60,6 +85,8 @@ a person's step: change `ref`, then run `bonsai update`.
 | `skills/` | The pack's skills, one folder each with its `SKILL.md`, to the open Agent Skills standard; a skill loads as `game:<name>` |
 | `bonsai/pack.yaml` | The Bonsai manifest (format `bonsai.pack/1`): id, version, needs, the block, the kind `playtest`, and the two roles with their limits. A `#` comment on every key documents it |
 | `bonsai/block.md` | The pack's two lines in the project's `CLAUDE.md`; its leading comment documents it |
+| `bonsai/files/statusline-unity.mjs` | The Unity segment, written into a project at `.trinetra/statusline/unity.mjs`; its header comment documents it ("The Unity segment" above) |
+| `ci/statusline-unity.test.mjs` | The segment's test, run by `sh ci/check.sh segment`; its header comment documents it |
 | `ci/check.sh` | Every check the pack has, in one script; its header documents each subcommand and argument |
 | `.github/workflows/pack.yml` | The pack's CI and release, calling `ci/check.sh`. A `#` comment on every key |
 | `.gitattributes` | Every file is text with LF line endings on every checkout, Windows included, so `sh ci/check.sh` runs there |
@@ -90,7 +117,8 @@ Every file the pack ships says its purpose, when to use it, and every field.
 - **A template skill** (`playtest`): a fields table, `| Field | Meaning | Allowed values | Example |`, above its
   template, the first fenced block after the table; `bonsai check --pack` holds the two equal.
 - **A role file, and a skill that is no template**: an HTML comment just after the frontmatter, pointing here.
-- **`ci/check.sh`**: its header. **`plugin.json`**: this page. **`block.md`**: its leading comment.
+- **`ci/check.sh`**, the segment and its test: their headers. **`plugin.json`**: this page. **`block.md`**: its
+  leading comment.
 
 ### Role files: frontmatter fields
 
@@ -148,17 +176,18 @@ A project sets its own default and max for any limit under the pack's entry in i
 
 ## Checks, CI and release
 
-`ci/check.sh` is Bonsai's pack template's script, unchanged (its header documents each subcommand):
+`ci/check.sh` is Bonsai's pack template's script with one subcommand added, `segment` (its header documents each):
 
 - `sh ci/check.sh check <bonsai> <folder> <source> <commit> [<path>]`: `bonsai check --pack` on the folder; this page's
   rows against `agents/` and `skills/`; a scratch project linked to the pack at the commit, with `claude` off the PATH
   and a temporary Bonsai home; `bonsai check` there. Locally, from the pack's top, on committed work:
   `sh ci/check.sh check "$(command -v bonsai)" . . "$(git rev-parse HEAD)"`.
+- `sh ci/check.sh segment <folder>`: the Unity segment's test (`node --test ci/statusline-unity.test.mjs`).
 - `sh ci/check.sh validate <folder>`: `claude plugin validate --json`, failing on every error and warning but the
   missing `version`. It needs no Claude login.
 - `sh ci/check.sh release <tag> <folder>`: fails unless the tag is `v` and `pack.yaml`'s `version`.
 
-`.github/workflows/pack.yml` runs on every push and pull request (it uses no secret): `check` on Linux and Windows
+`.github/workflows/pack.yml` runs on every push and pull request (it uses no secret): `check` and `segment` on Linux and Windows
 with a bonsai built from `BONSAI_COMMIT` (Bonsai `v1.0.0-rc.2` today); `validate` on Linux with the pinned Claude
 Code; then `release`, which checks the tag the version needs on every push and, on a `v*` tag only, makes the GitHub
 release.

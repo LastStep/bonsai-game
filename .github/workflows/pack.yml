@@ -22,7 +22,7 @@ env:                                         # the pins every job reads
   CLAUDE_CODE_VERSION: "2.1.300"             # the Claude Code whose claude plugin validate checks the pack
 
 jobs:                                        # check, validate, then release
-  check:                                     # bonsai check --pack, the README's rows, a scratch link, bonsai check
+  check:                                     # bonsai check --pack, the README's rows, a scratch link, bonsai check, the segment
     strategy:                                # one run per system
       matrix:                                # the systems it runs on
         os: [ubuntu-latest, windows-latest]  # Linux, and Windows (its Git Bash)
@@ -58,6 +58,15 @@ jobs:                                        # check, validate, then release
       - name: Check the pack                 # ci/check.sh check: the pack's folder and source are its checkout
         working-directory: pack              # in the pack's checkout
         run: sh ci/check.sh check "../bonsai$(go env GOEXE)" . . "$GITHUB_SHA"   # the commit being checked
+
+      - name: Set up Node                    # Node, which runs the Unity segment and its test
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38  # v6.5.0
+        with:                                # the step's inputs
+          node-version: "22"                 # Node 22, as the validate job
+
+      - name: Check the Unity segment        # ci/check.sh segment: the script prints what it should, on this system
+        working-directory: pack              # in the pack's checkout
+        run: sh ci/check.sh segment .        # on the pack's top
 
   validate:                                  # claude plugin validate, on Linux
     runs-on: ubuntu-latest                   # Linux

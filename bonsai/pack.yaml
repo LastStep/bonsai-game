@@ -1,8 +1,9 @@
 # bonsai/pack.yaml: the game pack's Bonsai manifest, format bonsai.pack/1. Bonsai's engine reads it when a project
 # links the pack (bonsai init, bonsai update) and when the pack's CI runs bonsai check --pack; Claude Code never reads
-# it. It says who the pack is, what a machine needs, and what the pack declares: the document kind playtest and two
-# roles, the playtest analyst and the producer, with their limits. It carries no code: no hook line and no file the
-# engine writes. Every key carries its comment, at its line's end or on the line just above; bonsai check --pack fails
+# it. It says who the pack is, what a machine needs, what the engine writes into a project (the Unity segment's
+# script) and what the pack declares: the document kind playtest and two roles, the playtest analyst and the producer,
+# with their limits. It carries no hook line, so Bonsai runs none of its code; the one file it writes is run by a
+# studio's status line, never by Bonsai or Claude Code on their own. Every key carries its comment, at its line's end or on the line just above; bonsai check --pack fails
 # a key without one. Every field's full meaning, type and allowed values: bonsai check --schema bonsai.pack. Text that
 # does not start with a letter is quoted (format-1 YAML). README.md says how a project takes the pack.
 format: bonsai.pack/1                 # the format and its version, always the first key; only bonsai.pack/1
@@ -19,7 +20,14 @@ needs:                                # what a machine needs for the pack; bonsa
 # block: the pack's part of the instruction block in a project's CLAUDE.md, bonsai/block.md: two lines naming the
 # roles and the skills. It loads in every session, so its docs stay in its own leading comment
 block: block.md
-files: []                             # no files: the pack writes nothing into a project but its block
+# files: the one file the engine writes into a project: the Unity segment's script, which a studio's status line runs
+# from the project's .trinetra/statusline/ folder (every script there, with the status line's JSON on stdin and a
+# short timeout). No hook line runs it, so it is no code to Bonsai and links with --yes alone. README.md, "The Unity
+# segment"
+files:
+  - path: ".trinetra/statusline/unity.mjs"   # where a studio's status line looks: <project>/.trinetra/statusline/
+    from: statusline-unity.mjs        # its source, bonsai/files/statusline-unity.mjs
+    kind: pack                        # the pack's file: an edit in the project is a conflict, and update rewrites it
 hooks: []                             # no hook lines: the pack carries no code that runs
 deny: []                              # no walls of its own: base's and the studio pack's hold
 # documents: the one document kind the pack declares, the record of a play session, with its template in skill

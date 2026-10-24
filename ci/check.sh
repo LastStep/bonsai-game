@@ -1,8 +1,9 @@
-# ci/check.sh: a Bonsai pack's checks, in one place. The pack's CI (.github/workflows/pack.yml) runs it, and Bonsai's
-# own CI runs the template's copy on every pack folder in Bonsai's repository, so a pack is checked exactly as Bonsai
-# checks its template. Written for sh (Linux, and Git Bash on Windows) and always run as `sh ci/check.sh ...`, so it
-# needs no executable mode. It prints what it checks, then "ok" or the reason it failed; it exits 0 when every check
-# passed, 1 when one failed, and 2 on a usage error.
+# ci/check.sh: the game pack's checks, in one place: Bonsai's pack template's script with one subcommand added,
+# segment. The pack's CI (.github/workflows/pack.yml) runs it, and Bonsai's own CI runs the template's copy on every
+# pack folder in Bonsai's repository, so the pack is checked exactly as Bonsai checks its template, and more. Written
+# for sh (Linux, and Git Bash on Windows) and always run as `sh ci/check.sh ...`, so it needs no executable mode. It
+# prints what it checks, then "ok" or the reason it failed; it exits 0 when every check passed, 1 when one failed,
+# and 2 on a usage error.
 #
 # Subcommands and their arguments:
 #
@@ -37,6 +38,13 @@
 #     <tag>     the release tag's name, such as v0.1.0 (in CI, the pushed tag's)
 #     <folder>  the pack's folder on disk
 #
+#   sh ci/check.sh segment <folder>
+#     The Unity segment's test, this pack's own: node --test ci/statusline-unity.test.mjs, which runs
+#     bonsai/files/statusline-unity.mjs from a fixture project's .trinetra/statusline/ the way a status line does and
+#     compares what it prints (unity:6000.4.12f1 open, closed, lock?, another Editor's version, nothing without
+#     Unity). It needs node on the PATH (any Node with node:test, 18 or newer).
+#     <folder>  the pack's folder on disk
+#
 #   sh ci/check.sh version <folder>
 #     Prints bonsai/pack.yaml's version alone (0.1.0), as release reads it: the CI's release job names the tag a
 #     version needs with it on every push that is not a tag.
@@ -46,6 +54,7 @@ usage() {
 	echo "usage: sh ci/check.sh check <bonsai> <folder> <source> <commit> [<path>]" >&2
 	echo "       sh ci/check.sh validate <folder>" >&2
 	echo "       sh ci/check.sh release <tag> <folder>" >&2
+	echo "       sh ci/check.sh segment <folder>" >&2
 	echo "       sh ci/check.sh version <folder>" >&2
 	echo "(the header of ci/check.sh documents each)" >&2
 	exit 2
@@ -218,6 +227,15 @@ validate() {
 	echo "ok: only the missing version"
 }
 
+segment() {
+	[ $# -eq 1 ] || usage
+	[ -f "$1/ci/statusline-unity.test.mjs" ] || fail "$1 holds no ci/statusline-unity.test.mjs: give the pack's folder"
+	command -v node >/dev/null 2>&1 || fail "node is not on the PATH: it runs the segment's test"
+	echo "== segment: node --test ci/statusline-unity.test.mjs (node $(node --version))"
+	(cd "$1" && node --test ci/statusline-unity.test.mjs) || fail "the Unity segment's test failed (above)"
+	echo "ok: the segment prints what it should"
+}
+
 release() {
 	[ $# -eq 2 ] || usage
 	tag=$1
@@ -234,6 +252,7 @@ case $sub in
 check) pack_check "$@" ;;
 validate) validate "$@" ;;
 release) release "$@" ;;
+segment) segment "$@" ;;
 version)
 	[ $# -eq 1 ] || usage
 	pack_version "$1"
